@@ -1,0 +1,59 @@
+version: '3.8'
+
+services:
+
+  # Base de datos MySQL
+  db:
+    image: mysql:8.0
+    container_name: innovatech-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: RootPass2025!
+      MYSQL_DATABASE: despachos_db
+      MYSQL_USER: despacho_user
+      MYSQL_PASSWORD: DespachoPass2025!
+    ports:
+      - "3306:3306"
+    volumes:
+      # Named volume elegido sobre bind mount porque:
+      # es portable, gestionado por Docker y no depende
+      # de rutas del sistema operativo host
+      - mysql_data:/var/lib/mysql
+    networks:
+      - innovatech-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-pRootPass2025!"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Backend Spring Boot
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: innovatech-backend
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    environment:
+      DB_ENDPOINT: db
+      DB_PORT: 3306
+      DB_NAME: despachos_db
+      DB_USERNAME: despacho_user
+      DB_PASSWORD: DespachoPass2025!
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - innovatech-network
+
+# Named volume para persistencia de datos
+volumes:
+  mysql_data:
+    driver: local
+
+# Red interna del stack
+networks:
+  innovatech-network:
+    driver: bridge
