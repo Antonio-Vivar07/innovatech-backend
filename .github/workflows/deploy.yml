@@ -42,7 +42,7 @@ jobs:
           sed "s|DOCKER_USER_PLACEHOLDER|$DOCKER_USER|g" docker-compose.deploy.yml > /tmp/docker-compose-deploy.yml
           ssh -o StrictHostKeyChecking=no -i /tmp/deploy_key.pem $EC2_USER@$EC2_HOST "mkdir -p ~/innovatech-backend"
           scp -o StrictHostKeyChecking=no -i /tmp/deploy_key.pem /tmp/docker-compose-deploy.yml $EC2_USER@$EC2_HOST:~/innovatech-backend/docker-compose.yml
-          ssh -o StrictHostKeyChecking=no -i /tmp/deploy_key.pem $EC2_USER@$EC2_HOST "cd ~/innovatech-backend && docker login -u $DOCKER_USER -p $DOCKER_TOKEN && docker compose down || true && docker compose up -d"
+          ssh -o StrictHostKeyChecking=no -i /tmp/deploy_key.pem $EC2_USER@$EC2_HOST "cd ~/innovatech-backend && docker login -u $DOCKER_USER -p $DOCKER_TOKEN && docker-compose down || true && docker-compose up -d"
 
       - name: Limpiar claves
         if: always()
