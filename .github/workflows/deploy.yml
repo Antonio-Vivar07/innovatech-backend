@@ -29,10 +29,9 @@ jobs:
             ${{ secrets.DOCKER_HUB_USERNAME }}/innovatech-backend:latest
             ${{ secrets.DOCKER_HUB_USERNAME }}/innovatech-backend:${{ github.sha }}
 
-      - name: Desplegar en EC2 Backend via jump host
+      - name: Desplegar en EC2 Backend
         run: |
           ssh -o StrictHostKeyChecking=no \
-              -o ProxyCommand="ssh -o StrictHostKeyChecking=no -i /home/ec2-user/.ssh/labsuser.pem -W %h:%p ec2-user@54.209.203.53" \
               -i /home/ec2-user/.ssh/labsuser.pem \
               ec2-user@10.0.2.202 << 'ENDSSH'
             docker login -u ${{ secrets.DOCKER_HUB_USERNAME }} \
