@@ -33,77 +33,17 @@ jobs:
         env:
           DOCKER_USER: ${{ secrets.DOCKER_HUB_USERNAME }}
           DOCKER_TOKEN: ${{ secrets.DOCKER_HUB_TOKEN }}
+          EC2_KEY: ${{ secrets.EC2_PRIVATE_KEY }}
+          EC2_USER: ${{ secrets.EC2_USER }}
+          EC2_HOST: ${{ secrets.EC2_HOST }}
         run: |
-          echo "${{ secrets.EC2_PRIVATE_KEY }}" > /tmp/deploy_key.pem
+          echo "$EC2_KEY" > /tmp/deploy_key.pem
           chmod 600 /tmp/deploy_key.pem
-          ssh -o StrictHostKeyChecking=no \
-              -i /tmp/deploy_key.pem \
-              ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} \
-              "mkdir -p ~/innovatech-backend"
-          cat > /tmp/docker-compose.yml << 'EOF'
-version: '3.8'
-services:
-  db:
-    image: mysql:8.0
-    container_name: innovatech-mysql
-    restart: unless-stopped
-    environment:
-      MYSQL_ROOT_PASSWORD: RootPass2025!
-      MYSQL_DATABASE: despachos_db
-      MYSQL_USER: despacho_user
-      MYSQL_PASSWORD: DespachoPass2025!
-    ports:
-      - "3306:3306"
-    volumes:
-      - mysql_data:/var/lib/mysql
-    networks:
-      - innovatech-network
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-pRootPass2025!"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-  backend:
-    image: DOCKER_USER_PLACEHOLDER/innovatech-backend:latest
-    container_name: innovatech-backend
-    restart: unless-stopped
-    ports:
-      - "8081:8081"
-    environment:
-      DB_ENDPOINT: db
-      DB_PORT: 3306
-      DB_NAME: despachos_db
-      DB_USERNAME: despacho_user
-      DB_PASSWORD: DespachoPass2025!
-    depends_on:
-      db:
-        condition: service_healthy
-    networks:
-      - innovatech-network
-volumes:
-  mysql_data:
-    driver: local
-networks:
-  innovatech-network:
-    driver: bridge
-EOF
-          sed -i "s/DOCKER_USER_PLACEHOLDER/${{ secrets.DOCKER_HUB_USERNAME }}/g" /tmp/docker-compose.yml
-          scp -o StrictHostKeyChecking=no \
-              -i /tmp/deploy_key.pem \
-              /tmp/docker-compose.yml \
-              ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:~/innovatech-backend/docker-compose.yml
-          ssh -o StrictHostKeyChecking=no \
-              -i /tmp/deploy_key.pem \
-              ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'ENDSSH'
-            set -e
-            cd ~/innovatech-backend
-            docker login -u $DOCKER_USER -p $DOCKER_TOKEN
-            docker compose down || true
-            docker compose up -d
-ENDSSH
+          sed "s|DOCKER_USER_PLACEHOLDER|$DOCKER_USER|g" docker-compose.deploy.yml > /tmp/docker-compose-deploy.yml
+          ssh -o StrictHostKeyChecking=no -i /tmp/deploy_key.pem $EC2_USER@$EC2_HOST "mkdir -p ~/innovatech-backend"
+          scp -o StrictHostKeyChecking=no -i /tmp/deploy_key.pem /tmp/docker-compose-deploy.yml $EC2_USER@$EC2_HOST:~/innovatech-backend/docker-compose.yml
+          ssh -o StrictHostKeyChecking=no -i /tmp/deploy_key.pem $EC2_USER@$EC2_HOST "cd ~/innovatech-backend && docker login -u $DOCKER_USER -p $DOCKER_TOKEN && docker compose down || true && docker compose up -d"
 
       - name: Limpiar claves
         if: always()
-        run: |
-          rm -f /tmp/deploy_key.pem
-          rm -f /tmp/docker-compose.yml
+        run: rm -f /tmp/deploy_key.pem /tmp/docker-compose-deploy.yml

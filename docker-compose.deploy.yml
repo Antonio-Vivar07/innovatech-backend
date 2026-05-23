@@ -1,4 +1,3 @@
-version: '3.8'
 services:
   db:
     image: mysql:8.0
@@ -9,8 +8,6 @@ services:
       MYSQL_DATABASE: despachos_db
       MYSQL_USER: despacho_user
       MYSQL_PASSWORD: DespachoPass2025!
-    ports:
-      - "3306:3306"
     volumes:
       - mysql_data:/var/lib/mysql
     networks:
