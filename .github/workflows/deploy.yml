@@ -14,28 +14,20 @@ jobs:
       - name: Obtener código fuente
         uses: actions/checkout@v3
 
-      - name: Configurar credenciales AWS
-        uses: aws-actions/configure-aws-credentials@v2
+      - name: Iniciar sesión en Docker Hub
+        uses: docker/login-action@v3
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
-          aws-region: us-east-1
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_TOKEN }}
 
-      - name: Iniciar sesión en Amazon ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v1
-
-      - name: Construir y publicar imagen Docker en ECR
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          ECR_REPOSITORY: innovatech-backend
-          IMAGE_TAG: ${{ github.sha }}
-        run: |
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:latest .
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+      - name: Construir y publicar imagen en Docker Hub
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ secrets.DOCKER_HUB_USERNAME }}/innovatech-backend:latest
+            ${{ secrets.DOCKER_HUB_USERNAME }}/innovatech-backend:${{ github.sha }}
 
       - name: Configurar clave SSH
         run: |
@@ -44,17 +36,13 @@ jobs:
           chmod 600 ~/.ssh/labsuser.pem
 
       - name: Desplegar en EC2 Backend
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          ECR_REPOSITORY: innovatech-backend
-          IMAGE_TAG: latest
         run: |
           ssh -o StrictHostKeyChecking=no \
               -i ~/.ssh/labsuser.pem \
               ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'ENDSSH'
-            aws ecr get-login-password --region us-east-1 | \
-              docker login --username AWS --password-stdin ${{ steps.login-ecr.outputs.registry }}
-            docker pull ${{ steps.login-ecr.outputs.registry }}/innovatech-backend:latest
+            docker login -u ${{ secrets.DOCKER_HUB_USERNAME }} \
+              -p ${{ secrets.DOCKER_HUB_TOKEN }}
+            docker pull ${{ secrets.DOCKER_HUB_USERNAME }}/innovatech-backend:latest
             docker stop innovatech-backend || true
             docker rm innovatech-backend || true
             docker run -d \
@@ -66,5 +54,5 @@ jobs:
               -e DB_NAME=despachos_db \
               -e DB_USERNAME=despacho_user \
               -e DB_PASSWORD=DespachoPass2025! \
-              ${{ steps.login-ecr.outputs.registry }}/innovatech-backend:latest
+              ${{ secrets.DOCKER_HUB_USERNAME }}/innovatech-backend:latest
           ENDSSH
