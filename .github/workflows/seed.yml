@@ -1,0 +1,21 @@
+name: Seed Database
+
+on:
+  workflow_dispatch:
+
+jobs:
+  seed:
+    name: Insertar datos de prueba
+    runs-on: self-hosted
+
+    steps:
+      - name: Insertar datos en MySQL
+        env:
+          EC2_KEY: ${{ secrets.EC2_PRIVATE_KEY }}
+          EC2_USER: ${{ secrets.EC2_USER }}
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+        run: |
+          echo "$EC2_KEY" > /tmp/deploy_key.pem
+          chmod 600 /tmp/deploy_key.pem
+          ssh -o StrictHostKeyChecking=no -i /tmp/deploy_key.pem $EC2_USER@$EC2_HOST "docker exec innovatech-mysql mysql -u despacho_user -pDespachoPass2025! despachos_db -e \"INSERT INTO ventas (direccion_compra, fecha_compra, valor_compra, despacho_generado) VALUES ('Av. Providencia 1234, Santiago', '2026-05-20', 150000, 0), ('Calle Las Flores 567, Viña del Mar', '2026-05-21', 89000, 0), ('Pasaje Los Robles 890, Concepcion', '2026-05-22', 210000, 0);\""
+          rm -f /tmp/deploy_key.pem
